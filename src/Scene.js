@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { LazyBrush, Point } from 'lazy-brush'
 import { Catenary } from 'catenary-curve'
 import ResizeObserver from 'resize-observer-polyfill'
+import * as d3 from 'd3-path'
 
 const LAZY_RADIUS = 60
 const BRUSH_RADIUS = 12.5
@@ -14,7 +15,7 @@ function midPointBtw(p1, p2) {
   };
 }
 
-function context(canvas) {
+function getContext(canvas) {
     return canvas.getContext('2d')
 }
 
@@ -158,7 +159,7 @@ export default function Scene() {
       // setCanvasSize(canvas.temp.current, width, height, 1)
       setCanvasSize(canvas.grid.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 2): dpi)
 
-      drawGrid(context(canvas.grid.current))
+      drawGrid(getContext(canvas.grid.current))
       loop({ once: true })
     }
   }
@@ -185,23 +186,56 @@ export default function Scene() {
     e.preventDefault()
     setIsDrawing(false)
     setIsPressing(false)
+
+    const path = d3.path()
+    drawPoints(path)
+    console.log(path.toString())
+    
     points.current = []
 
     const dpi = window.innerWidth > 1024 ? 1 : window.devicePixelRatio
     const width = canvas.temp.current.width / dpi
     const height = canvas.temp.current.height / dpi
 
-    context(canvas.drawing.current).drawImage(canvas.temp.current, 0, 0, width, height)
-    context(canvas.temp.current).clearRect(0, 0, width, height)
+    getContext(canvas.drawing.current).drawImage(canvas.temp.current, 0, 0, width, height)
+    getContext(canvas.temp.current).clearRect(0, 0, width, height)
+  }
+
+  const drawPoints = context => {
+    context.lineWidth = brushRadis * 2
+    
+    const mPoints = points.current
+    var p1 = mPoints[0]
+    var p2 = mPoints[1]
+
+    context.moveTo(p2.x, p2.y)
+    // Fix d3-path
+    context.beginPath && context.beginPath()
+
+    for (var i = 1, len = mPoints.length; i < len; i++) {
+      // we pick the point between pi+1 & pi+2 as the
+      // end point and p1 as our control point
+      var midPoint = midPointBtw(p1, p2)
+      context.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
+      p1 = mPoints[i]
+      p2 = mPoints[i+1];
+    }
+    // Draw last line as a straight line while
+    // we wait for the next point to be able to calculate
+    // the bezier control point
+    context.lineTo(p1.x, p1.y)
+    // Fix d3-path
+    context.stroke && context.stroke()
   }
 
   const handlePointerMove = (x, y) => {
+    const context = getContext(canvas.temp.current)
     const hasChanged = lazy.update({ x: x, y: y})
     const isDisabled = !lazy.isEnabled()
 
-    context(canvas.temp.current).lineJoin = 'round'
-    context(canvas.temp.current).lineCap = 'round'
-    context(canvas.temp.current).strokeStyle = "#f2530b"
+    context.lineJoin = 'round'
+    context.lineCap = 'round'
+    context.strokeStyle = "#f2530b"
 
     if ((isPressing && hasChanged && !isDrawing) || (isDisabled && isPressing)) {
       setIsDrawing(true)
@@ -209,31 +243,9 @@ export default function Scene() {
     }
 
     if (isDrawing && (lazy.brushHasMoved() || isDisabled)) {
-
-      context(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
-      context(canvas.temp.current).lineWidth = brushRadis * 2
+      context.clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
       points.current.push(lazy.brush.toObject())
-      const mPoints = points.current
-
-      var p1 = mPoints[0]
-      var p2 = mPoints[1]
-
-      context(canvas.temp.current).moveTo(p2.x, p2.y)
-      context(canvas.temp.current).beginPath()
-
-      for (var i = 1, len = mPoints.length; i < len; i++) {
-        // we pick the point between pi+1 & pi+2 as the
-        // end point and p1 as our control point
-        var midPoint = midPointBtw(p1, p2)
-        context(canvas.temp.current).quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
-        p1 = mPoints[i]
-        p2 = mPoints[i+1];
-      }
-      // Draw last line as a straight line while
-      // we wait for the next point to be able to calculate
-      // the bezier control point
-      context(canvas.temp.current).lineTo(p1.x, p1.y)
-      context(canvas.temp.current).stroke()
+      drawPoints(context)
     }
 
     setMouseHasMoved(true)
@@ -241,8 +253,8 @@ export default function Scene() {
 
   const clearCanvas = () => {
     setValuesChanged(true)
-    // context(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
-    context(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
+    // getContext(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
+    getContext(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
   }
 
   const loop = ({ once = false } = {}) => {
@@ -250,7 +262,7 @@ export default function Scene() {
       const pointer = lazy.getPointerCoordinates()
       const brush = lazy.getBrushCoordinates()
 
-      drawInterface(context(canvas.interface.current), pointer, brush)
+      drawInterface(getContext(canvas.interface.current), pointer, brush)
       setMouseHasMoved(false)
       setValuesChanged(false)
     }
@@ -313,7 +325,7 @@ export default function Scene() {
       ctx.lineCap = 'round'
       ctx.setLineDash([2, 4])
       ctx.strokeStyle = "#34312f"
-      catenary.drawToCanvas(context(canvas.interface.current), brush, pointer, chainLength)
+      catenary.drawToCanvas(getContext(canvas.interface.current), brush, pointer, chainLength)
       ctx.stroke()
     }
 
