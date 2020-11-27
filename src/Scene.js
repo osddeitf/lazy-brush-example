@@ -33,6 +33,20 @@ function useResizeObserver(elRef, handle) {
   }, [elRef, observer]);
 }
 
+function useAnimationFrame(render) {
+  const request = useRef()
+
+  const animate = () => {
+    render()
+    request.current = requestAnimationFrame(animate)
+  }
+
+  useEffect(() => {
+    request.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(request.current)
+  }, [])
+}
+
 export default function Scene() {
     const canvas = {}
     canvas.interface = useRef()
@@ -66,48 +80,39 @@ export default function Scene() {
     const brushRadis = BRUSH_RADIUS
     const chainLength = LAZY_RADIUS
 
-  useResizeObserver(canvasContainer, (entries, observer) => handleCanvasResize(entries, observer))
+  useResizeObserver(canvasContainer, (entries, observer) => {
+    const dpi = window.devicePixelRatio
 
-  useEffect(() => {
-    // // Listeners for mouse events
-    // this.canvas.interface.addEventListener('mousedown', this.handlePointerDown.bind(this))
-    // this.canvas.interface.addEventListener('mouseup', this.handlePointerUp.bind(this))
-    // this.canvas.interface.addEventListener('mousemove', (e) => this.handlePointerMove(e.clientX, e.clientY))
+    const setCanvasSize = (canvas, width, height, dpi) => {
+      canvas.width = width * dpi
+      canvas.height = height * dpi
+      canvas.style.width = width
+      canvas.style.height = height
+      canvas.getContext('2d').scale(dpi, dpi)
+    }
 
-    // // Listeners for touch events
-    // this.canvas.interface.addEventListener('touchstart', (e) => this.handleTouchStart(e))
-    // this.canvas.interface.addEventListener('touchend', (e) => this.handleTouchEnd(e))
-    // this.canvas.interface.addEventListener('touchmove', (e) => this.handleTouchMove(e))
+    for (const entry of entries) {
+      const { width, height } = entry.contentRect
+      console.log(width, height)
+      setCanvasSize(canvas.interface.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1.25): dpi)
+      setCanvasSize(canvas.drawing.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1): dpi)
+      setCanvasSize(canvas.temp.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1): dpi)
+      setCanvasSize(canvas.grid.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 2): dpi)
 
-    // Listeners for click events on butons
-    // this.button.clear.addEventListener('click', (e) => this.handleButtonClear(e))
-    // this.button.lazy.addEventListener('click', (e) => this.handleButtonLazy(e))
+      drawGrid(getContext(canvas.grid.current))
+    }
+  })
 
-    // Listeners for input events on range sliders
-    // this.slider.brush.addEventListener('input', (e) => this.handleSliderBrush(e))
-    // this.slider.lazy.addEventListener('input', (e) => this.handleSliderLazy(e))
+  useAnimationFrame(() => {
+    if (mouseHasMoved || valuesChanged) {
+      const pointer = lazy.getPointerCoordinates()
+      const brush = lazy.getBrushCoordinates()
 
-    // Set initial value for range sliders
-    // this.slider.brush.value = BRUSH_RADIUS
-    // this.slider.lazy.value = LAZY_RADIUS
-
-    // observeCanvas.observe(canvasContainer.current)
-
-    // const observeSidebar = new ResizeObserver((entries, observer) => this.handleSidebarResize(entries, observer))
-    // observeSidebar.observe(this.sidebar)
-
-    loop()
-
-    // window.setTimeout(() => {
-    //   const initX = window.innerWidth / 2
-    //   const initY = window.innerHeight / 2
-    //   lazy.update({x: initX - (chainLength  / 4), y: initY}, { both: true })
-    //   lazy.update({x: initX + (chainLength  / 4), y: initY}, { both: false })
-    //   setMouseHasMoved(true)
-    //   setValuesChanged(true)
-    //   clearCanvas()
-    // }, 100)
-  }, [])
+      drawInterface(getContext(canvas.interface.current), pointer, brush)
+      setMouseHasMoved(false)
+      setValuesChanged(false)
+    }
+  })
 
   const handleTouchStart = (e) => {
     const x = e.changedTouches[0].clientX
@@ -130,53 +135,6 @@ export default function Scene() {
     setMouseHasMoved(true)
   }
 
-  const handleSidebarResize = (entries, observer) => {
-    for (const entry of entries) {
-      const {left, top, width, height} = entry.contentRect
-      loop({ once: true })
-    }
-  }
-
-  const setCanvasSize = (canvas, width, height, dpi) => {
-    canvas.width = width * dpi
-    canvas.height = height * dpi
-    canvas.style.width = width
-    canvas.style.height = height
-    canvas.getContext('2d').scale(dpi, dpi)
-  }
-
-  const handleCanvasResize = (entries, observer) => {
-    console.log('handleCanvasResize', entries, observer)
-    const dpi = window.devicePixelRatio
-
-    for (const entry of entries) {
-      const { width, height } = entry.contentRect
-      console.log(width, height)
-      setCanvasSize(canvas.interface.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1.25): dpi)
-      setCanvasSize(canvas.drawing.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1): dpi)
-      setCanvasSize(canvas.temp.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 1): dpi)
-      // setCanvasSize(canvas.drawing.current, width, height, 1)
-      // setCanvasSize(canvas.temp.current, width, height, 1)
-      setCanvasSize(canvas.grid.current, width, height, window.innerWidth > 1024 ? Math.min(dpi, 2): dpi)
-
-      drawGrid(getContext(canvas.grid.current))
-      loop({ once: true })
-    }
-  }
-
-//   handleSliderBrush (e) {
-//     const val = parseInt(e.target.value)
-//     this.valuesChanged = true
-//     brushRadis = val
-//   }
-
-//   handleSliderLazy (e) {
-//     this.valuesChanged = true
-//     const val = parseInt(e.target.value)
-//     chainLength = val
-//     lazy.setRadius(val)
-//   }
-
   const handlePointerDown = (e) => {
     e.preventDefault()
     setIsPressing(true)
@@ -190,7 +148,7 @@ export default function Scene() {
     const path = d3.path()
     drawPoints(path)
     console.log(path.toString())
-    
+
     points.current = []
 
     const dpi = window.innerWidth > 1024 ? 1 : window.devicePixelRatio
@@ -203,7 +161,7 @@ export default function Scene() {
 
   const drawPoints = context => {
     context.lineWidth = brushRadis * 2
-    
+
     const mPoints = points.current
     var p1 = mPoints[0]
     var p2 = mPoints[1]
@@ -255,23 +213,6 @@ export default function Scene() {
     setValuesChanged(true)
     getContext(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
     getContext(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
-  }
-
-  const loop = ({ once = false } = {}) => {
-    if (mouseHasMoved || valuesChanged) {
-      const pointer = lazy.getPointerCoordinates()
-      const brush = lazy.getBrushCoordinates()
-
-      drawInterface(getContext(canvas.interface.current), pointer, brush)
-      setMouseHasMoved(false)
-      setValuesChanged(false)
-    }
-
-    if (!once) {
-      window.requestAnimationFrame(() => {
-        loop()
-      })
-    }
   }
 
   const drawGrid = (ctx) => {
