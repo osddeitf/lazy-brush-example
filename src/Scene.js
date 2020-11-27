@@ -125,7 +125,7 @@ export default function Scene() {
 
   const handleTouchMove = (e) => {
     e.preventDefault()
-    this.handlePointerMove(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
+    handlePointerMove(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
   }
 
   const handleTouchEnd = (e) => {
@@ -145,9 +145,11 @@ export default function Scene() {
     setIsDrawing(false)
     setIsPressing(false)
 
-    const path = d3.path()
-    drawPoints(path)
-    console.log(path.toString())
+    if (points.current.length > 2) {
+      const path = d3.path()
+      drawPoints(path)
+      console.log(path.toString())
+    }
 
     points.current = []
 
