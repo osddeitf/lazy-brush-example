@@ -253,7 +253,7 @@ export default function Scene() {
 
   const clearCanvas = () => {
     setValuesChanged(true)
-    // getContext(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
+    getContext(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
     getContext(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
   }
 
@@ -338,9 +338,9 @@ export default function Scene() {
 
   return (
     <div className="w-full h-full relative" ref={canvasContainer}>
-        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.temp}></canvas>
-        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.drawing}></canvas>
-        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.grid}></canvas>
+        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.temp} />
+        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.drawing} />
+        <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.grid} />
         <canvas className="absolute left-0 top-0 w-full h-full" ref={canvas.interface}
             onMouseDown={ handlePointerDown }
             onMouseUp={ handlePointerUp }
@@ -348,7 +348,10 @@ export default function Scene() {
             onTouchStart={ (e) => handleTouchStart(e) }
             onTouchEnd={ (e) => handleTouchEnd(e) }
             onTouchMove={ (e) => handleTouchMove(e) }
-        ></canvas>
+        />
+        <div className="absolute left-0 bottom-0 w-full px-4 py-2 flex">
+          <button className="block border-2 border-gray-800 px-4 py-2" onClick={clearCanvas}>Clear</button>
+        </div>
     </div>
   )
 }
