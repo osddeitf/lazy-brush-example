@@ -212,6 +212,9 @@ export default function Scene() {
   }
 
   const clearCanvas = () => {
+    points.current = []
+    setIsDrawing(false)
+    // setIsPressing(false)
     setValuesChanged(true)
     getContext(canvas.drawing.current).clearRect(0, 0, canvas.drawing.current.width, canvas.drawing.current.height)
     getContext(canvas.temp.current).clearRect(0, 0, canvas.temp.current.width, canvas.temp.current.height)
